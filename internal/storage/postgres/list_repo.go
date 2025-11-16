@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -13,6 +14,9 @@ import (
 )
 
 var ErrNotFound = errors.New("not found")
+
+// общий таймаут для всех запросов к БД
+const dbTimeout = 5 * time.Second
 
 type ListRepo struct {
 	pool *pgxpool.Pool
@@ -24,6 +28,9 @@ func NewListRepo(pool *pgxpool.Pool) *ListRepo {
 
 // Create создаёт новый список
 func (r *ListRepo) Create(ctx context.Context, title string) (domain.List, error) {
+	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
+	defer cancel()
+
 	id := uuid.New()
 
 	const query = `
@@ -46,6 +53,9 @@ func (r *ListRepo) Create(ctx context.Context, title string) (domain.List, error
 
 // GetByID получает список по ID
 func (r *ListRepo) GetByID(ctx context.Context, id uuid.UUID) (domain.List, error) {
+	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
+	defer cancel()
+
 	const query = `
 		SELECT id, title, created_at
 		FROM lists
@@ -69,6 +79,9 @@ func (r *ListRepo) GetByID(ctx context.Context, id uuid.UUID) (domain.List, erro
 
 // UpdateTitle обновляет название списка
 func (r *ListRepo) UpdateTitle(ctx context.Context, id uuid.UUID, title string) (domain.List, error) {
+	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
+	defer cancel()
+
 	const query = `
 		UPDATE lists
 		SET title = $2
@@ -93,6 +106,9 @@ func (r *ListRepo) UpdateTitle(ctx context.Context, id uuid.UUID, title string) 
 
 // Delete удаляет список
 func (r *ListRepo) Delete(ctx context.Context, id uuid.UUID) error {
+	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
+	defer cancel()
+
 	const query = `DELETE FROM lists WHERE id = $1`
 
 	res, err := r.pool.Exec(ctx, query, id)
@@ -107,6 +123,9 @@ func (r *ListRepo) Delete(ctx context.Context, id uuid.UUID) error {
 
 // List возвращает списки с пагинацией и их общее количество
 func (r *ListRepo) List(ctx context.Context, limit, offset int) ([]domain.List, int, error) {
+	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
+	defer cancel()
+
 	// Общее количество
 	const countQuery = `SELECT COUNT(*) FROM lists`
 	var total int
@@ -146,6 +165,9 @@ func (r *ListRepo) List(ctx context.Context, limit, offset int) ([]domain.List, 
 // Save делает upsert по id: если запись есть — обновит title, если нет — создаст.
 // ВАЖНО: по контракту интерфейса возвращает только error.
 func (r *ListRepo) Save(ctx context.Context, l domain.List) error {
+	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
+	defer cancel()
+
 	const query = `
 		INSERT INTO lists (id, title)
 		VALUES ($1, $2)
