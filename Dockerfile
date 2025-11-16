@@ -21,6 +21,9 @@ WORKDIR /app
 # Копируем только бинарник
 COPY --from=builder /app/service .
 
+# Копируем папки docs (Swagger OpenAPI файл)
+COPY --from=builder /app/docs ./docs
+
 # Открываем порт
 EXPOSE 8080
 
